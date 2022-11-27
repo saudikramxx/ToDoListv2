@@ -4,6 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 
 const mongoose = require("mongoose");
+const _ = require("lodash")
 const app = express();
 
 app.set('view engine', 'ejs');
@@ -63,11 +64,28 @@ app.get("/", function(req, res) {
 app.post("/", function(req, res){
 
   const itemName = req.body.newItem;
- const item = new Item({
-  name: itemName
- })
- item.save();
- res.redirect("/")
+  const listTitle = req.body.list
+  const item = new Item({
+    name: itemName
+   })
+
+  if (listTitle === "Today"){
+    item.save();
+    res.redirect("/")
+
+  }else{
+    List.findOne({name:listTitle},function(err,list){
+      
+        list.items.push(item);
+        list.save();
+        res.redirect("/" + listTitle);
+      
+    })
+
+  }
+ 
+ 
+ 
 
  
 
@@ -76,31 +94,46 @@ app.post("/", function(req, res){
 
 app.post("/delete",function(req, res){
   const checkedItemid = req.body.checkbox;
-  Item.findByIdAndRemove(checkedItemid, function(err){
-    if(!err){
-      res.redirect("/")
-    }
-  });
+  const listTitle = req.body.ListName;
+  if(listTitle === "Today"){
+    Item.findByIdAndRemove(checkedItemid, function(err){
+      if(!err){
+        res.redirect("/")
+      }
+    });
+  }else{
+    List.findOneAndUpdate({name:listTitle},{$pull:{items:{_id:checkedItemid}}},function(err,foundList){
+      if(!err){
+        res.redirect("/"+ listTitle)
+      }
+    })
+
+  }
+  
 });
 
 app.get("/:customlist", function(req, res){
 
-  const customlist = req.params.customlist;
+  const customlist = _.capitalize(req.params.customlist);
 
  
-  console.log(customlist)
+  
   
   
   List.findOne({name: customlist}, function(err,results){
-    console.log(results)
+   
     if(!err){
-      if(results.name == null){
-         const list =new List({
+      if(!results){
+         const newList = new List({
          name : customlist,
          items: defaultItems
+         
 
            });
-        list.save();
+           
+        newList.save();
+        
+        res.redirect("/" + customlist);
         
         
 
